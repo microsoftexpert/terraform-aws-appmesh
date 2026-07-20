@@ -18,7 +18,7 @@
 - 🔒 Defaults the mesh **egress filter to `DROP_ALL`** — a virtual node may only reach the backends it explicitly declares; nothing leaks out by accident.
 - 🔐 Every listener/gateway-listener TLS block is deeply typed (`acm`/`file`/`sds` certificate sources, `acm`/`file`/`sds` — or **`file`/`sds` only** for listener-context trust, a genuine App Mesh API asymmetry) so a caller who fat-fingers a field gets a type error at plan time.
 - 📝 Recommends Envoy **access logging** (`logging_access_log_path`) on every virtual node/gateway carrying PII-adjacent traffic.
-- 🚫 Deliberately **data-plane-agnostic** — this module never touches an ECS task definition or EKS manifest; it only emits the ARNs/names the Envoy sidecar needs (wire them into `tf-mod-aws-ecs-service`).
+- 🚫 Deliberately **data-plane-agnostic** — this module never touches an ECS task definition or EKS manifest; it only emits the ARNs/names the Envoy sidecar needs (wire them into `terraform-aws-ecs-service`).
 
 > 💡 **Why it matters:** a service mesh's security posture lives entirely in its control-plane configuration — egress filters, TLS mode, and mTLS trust chains — so getting those defaults right here is what keeps a compromised sidecar from becoming a lateral-movement path across every other service in the mesh.
 
@@ -42,14 +42,14 @@ Whether it's a star, a professional connection, or a coffee, every gesture helps
 
 ```mermaid
 flowchart LR
- ACM["tf-mod-aws-acm (regional cert)"] --> APPMESH
- ACMPCA["tf-mod-aws-acm-pca (Private CA)"] --> APPMESH
- SD["tf-mod-aws-service-discovery (Cloud Map)"] --> APPMESH
- APPMESH["tf-mod-aws-appmesh (mesh control plane)"]
- APPMESH --> ECS["tf-mod-aws-ecs-service (Envoy sidecar + task def)"]
- IAMROLE["tf-mod-aws-iam-role"] --> ECS
- VPC["tf-mod-aws-vpc"] --> ECS
- LB["tf-mod-aws-lb"] --> ECS
+ ACM["terraform-aws-acm (regional cert)"] --> APPMESH
+ ACMPCA["terraform-aws-acm-pca (Private CA)"] --> APPMESH
+ SD["terraform-aws-service-discovery (Cloud Map)"] --> APPMESH
+ APPMESH["terraform-aws-appmesh (mesh control plane)"]
+ APPMESH --> ECS["terraform-aws-ecs-service (Envoy sidecar + task def)"]
+ IAMROLE["terraform-aws-iam-role"] --> ECS
+ VPC["terraform-aws-vpc"] --> ECS
+ LB["terraform-aws-lb"] --> ECS
 
  style APPMESH fill:#FF9900,color:#fff
 ```
@@ -106,9 +106,9 @@ No `iam:PassRole` is required by this module. No service-linked role is auto-cre
 ## 📋 AWS Prerequisites
 
 - **No service-linked role** is required for App Mesh.
-- **Data-plane sidecar is NOT managed here.** App Mesh only takes effect once the Envoy proxy container is injected into the ECS task definition (`proxy_configuration { type = "APPMESH" }` plus the `APPMESH_RESOURCE_ARN` environment variable pointing at this module's `virtual_node_arns[key]` output) or the EKS pod spec (via the App Mesh Kubernetes controller). Wire this module's outputs into `tf-mod-aws-ecs-service`.
+- **Data-plane sidecar is NOT managed here.** App Mesh only takes effect once the Envoy proxy container is injected into the ECS task definition (`proxy_configuration { type = "APPMESH" }` plus the `APPMESH_RESOURCE_ARN` environment variable pointing at this module's `virtual_node_arns[key]` output) or the EKS pod spec (via the App Mesh Kubernetes controller). Wire this module's outputs into `terraform-aws-ecs-service`.
 - **Region:** App Mesh is a regional service — no `us-east-1` constraint. Standard provider inheritance; no `region` variable in this module.
-- **Cloud Map dependency:** `aws_cloud_map` service discovery requires an existing namespace/service (`tf-mod-aws-service-discovery`) created first.
+- **Cloud Map dependency:** `aws_cloud_map` service discovery requires an existing namespace/service (`terraform-aws-service-discovery`) created first.
 - **Quotas:** 250 meshes per account (soft), 5,000 virtual nodes / 5,000 virtual services per mesh, 10 listeners per virtual node (soft).
 - **Strategic note:** confirm App Mesh (vs. ECS Service Connect / EKS-native mesh) is the intended long-term architecture — see the `> ℹ️` callout above.
 
@@ -117,7 +117,7 @@ No `iam:PassRole` is required by this module. No service-linked role is auto-cre
 ## 📁 Module Structure
 
 ```
-tf-mod-aws-appmesh/
+terraform-aws-appmesh/
 ├── providers.tf
 ├── variables.tf
 ├── main.tf
@@ -132,7 +132,7 @@ tf-mod-aws-appmesh/
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -169,10 +169,10 @@ module "mesh" {
 
 | Input | Type | Source module |
 |---|---|---|
-| `virtual_nodes[*].service_discovery.aws_cloud_map.namespace_name` / `.service_name` | `string` | `tf-mod-aws-service-discovery` |
-| `virtual_nodes[*].listeners[*].tls.certificate.acm.certificate_arn` | `string` (ARN) | `tf-mod-aws-acm` (regional cert) |
-| `virtual_gateways[*].listener.tls.certificate.acm.certificate_arn` | `string` (ARN) | `tf-mod-aws-acm` (regional cert) |
-| `*.tls.validation.trust.acm.certificate_authority_arns` | `list(string)` (ARNs) | `tf-mod-aws-acm-pca` |
+| `virtual_nodes[*].service_discovery.aws_cloud_map.namespace_name` / `.service_name` | `string` | `terraform-aws-service-discovery` |
+| `virtual_nodes[*].listeners[*].tls.certificate.acm.certificate_arn` | `string` (ARN) | `terraform-aws-acm` (regional cert) |
+| `virtual_gateways[*].listener.tls.certificate.acm.certificate_arn` | `string` (ARN) | `terraform-aws-acm` (regional cert) |
+| `*.tls.validation.trust.acm.certificate_authority_arns` | `list(string)` (ARNs) | `terraform-aws-acm-pca` |
 
 ### Emits
 
@@ -180,7 +180,7 @@ module "mesh" {
 |---|---|---|
 | `id` | Mesh id (= mesh name) | Cross-references within this module |
 | `arn` | Mesh ARN | IAM policies scoping `appmesh:*` |
-| `virtual_node_ids` / `virtual_node_arns` / `virtual_node_names` | Map keyed by caller key | `tf-mod-aws-ecs-service` (`APPMESH_RESOURCE_ARN`, `proxy_configuration`) |
+| `virtual_node_ids` / `virtual_node_arns` / `virtual_node_names` | Map keyed by caller key | `terraform-aws-ecs-service` (`APPMESH_RESOURCE_ARN`, `proxy_configuration`) |
 | `virtual_router_ids` / `virtual_router_arns` / `virtual_router_names` | Map keyed by caller key | Route wiring, monitoring |
 | `virtual_gateway_ids` / `virtual_gateway_arns` / `virtual_gateway_names` | Map keyed by caller key | Gateway route wiring, ECS/EKS gateway task |
 | `virtual_service_ids` / `virtual_service_arns` / `virtual_service_names` | Map keyed by caller key | Client-side virtual node `backend` references, gateway route targets |
@@ -196,7 +196,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "sandbox-mesh"
 }
@@ -209,7 +209,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -231,7 +231,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -254,7 +254,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -285,7 +285,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -313,7 +313,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -356,7 +356,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -389,7 +389,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -417,7 +417,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -444,7 +444,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -485,7 +485,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -520,7 +520,7 @@ module "mesh" {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name          = "legacy-migration-mesh"
   egress_filter_type = "ALLOW_ALL" # documented exception — migration window only
@@ -544,7 +544,7 @@ provider "aws" {
 }
 
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -574,7 +574,7 @@ import {
 
 ```hcl
 module "mesh" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 
   mesh_name = "core-mesh"
 
@@ -597,7 +597,7 @@ module "mesh" {
 }
 
 module "orders_service" {
-  source = "git::https://github.com/microsoftexpert/tf-mod-aws-ecs-service?ref=v1.0.0"
+  source = "git::https://github.com/microsoftexpert/terraform-aws-ecs-service?ref=v1.0.0"
 
   name        = "orders"
   cluster_arn = module.ecs_cluster.arn
@@ -695,14 +695,14 @@ No output in this module is `sensitive = true` — App Mesh resources carry no s
 - **Access logging is opt-in but strongly recommended** (`logging_access_log_path`) — leaving it `null` disables Envoy access logs, reducing auditability for PII-adjacent services.
 - **Deeply-typed `object` schemas throughout** — no `any`, no loose `map` for structured data, including the two schema asymmetries called out in Architecture Notes.
 - **Keyed `for_each` maps, never `count`** — every child collection (nodes, routers, gateways, services, routes, gateway routes) is addressable and removable independently.
-- **Data-plane-agnostic by design** — this module never configures an ECS task definition or EKS manifest; `tf-mod-aws-ecs-service` (or a future EKS-side module) owns Envoy sidecar injection.
+- **Data-plane-agnostic by design** — this module never configures an ECS task definition or EKS manifest; `terraform-aws-ecs-service` (or a future EKS-side module) owns Envoy sidecar injection.
 
 ---
 
 ## 🚀 Runbook
 
 ```powershell
-cd tf-mod-aws-appmesh
+cd terraform-aws-appmesh
 terraform init -backend=false
 terraform validate
 terraform fmt -check
@@ -753,7 +753,7 @@ virtual_node_arns = {
 - **Credential-chain failures on `plan`/`apply`** — App Mesh has no special credential requirements; standard AWS provider chain troubleshooting applies (env vars → SSO → `assume_role` → instance profile/IRSA → OIDC).
 - **`Error: Unsupported block type` for `acm` under a listener's `validation.trust`** — this is not a bug in this module; the listener-context trust block genuinely does not support `acm` in the provider schema (only `file`/`sds`). Use `client_policy_tls.validation.trust.acm` on the backend/backend_defaults side instead, or issue a certificate the trust store can validate via `file`/`sds`.
 - **`Error: Unsupported block type` for `rewrite` under a `grpc_route` gateway-route action** — `rewrite` is HTTP/HTTP2-only; remove it from `grpc_route.action`.
-- **Envoy sidecar never registers / traffic never flows** — this module only creates control-plane objects. Confirm the ECS task definition has `proxy_configuration { type = "APPMESH" }`, an `envoy` container with `APPMESH_RESOURCE_ARN` set to this module's `virtual_node_arns[key]` output, and that the task/execution role has the App Mesh Envoy IAM policy attached (managed in `tf-mod-aws-ecs-service` / `tf-mod-aws-iam-role`, not here).
+- **Envoy sidecar never registers / traffic never flows** — this module only creates control-plane objects. Confirm the ECS task definition has `proxy_configuration { type = "APPMESH" }`, an `envoy` container with `APPMESH_RESOURCE_ARN` set to this module's `virtual_node_arns[key]` output, and that the task/execution role has the App Mesh Envoy IAM policy attached (managed in `terraform-aws-ecs-service` / `terraform-aws-iam-role`, not here).
 - **Virtual service `provider` mismatch after a rename** — because cross-references are by NAME, renaming a virtual node or router (FORCE-NEW) also recreates the virtual service's provider binding; expect a brief resolution gap for in-flight Envoy proxies until they refresh their config from the App Mesh control plane.
 - **Destroy fails with a dependency error** — destroy gateway routes before their virtual gateway, routes before their virtual router, and virtual services before the virtual node/router they reference. Terraform infers this from the by-name references, but a manual `-target` sequence must respect the same order.
 - **IAM permission denials** — the executing role is missing an action from the `## Required IAM Permissions` table; add the specific action, never broaden to `appmesh:*` in production.
@@ -765,7 +765,7 @@ virtual_node_arns = {
 - `aws_appmesh_mesh`, `aws_appmesh_virtual_node`, `aws_appmesh_virtual_router`, `aws_appmesh_virtual_gateway`, `aws_appmesh_virtual_service`, `aws_appmesh_route`, `aws_appmesh_gateway_route` provider documentation (Terraform Registry, `hashicorp/aws`)
 - AWS App Mesh service documentation — Envoy proxy configuration, service discovery, and TLS
 - This module's `SCOPE.md`
-- Sibling modules: `tf-mod-aws-ecs-service` (data-plane sidecar), `tf-mod-aws-service-discovery` (Cloud Map), `tf-mod-aws-acm` / `tf-mod-aws-acm-pca` (TLS material)
+- Sibling modules: `terraform-aws-ecs-service` (data-plane sidecar), `terraform-aws-service-discovery` (Cloud Map), `terraform-aws-acm` / `terraform-aws-acm-pca` (TLS material)
 
 ---
 

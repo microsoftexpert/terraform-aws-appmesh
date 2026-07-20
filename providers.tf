@@ -20,11 +20,11 @@ terraform {
 #
 # ACM certificates referenced by tls.certificate.acm.certificate_arn must be
 # REGIONAL certificates issued in the same Region as this module's provider
-# (NOT the us-east-1 CloudFront exception that applies to tf-mod-aws-cloudfront
-# / tf-mod-aws-wafv2 / tf-mod-aws-acm-for-cloudfront).
+# (NOT the us-east-1 CloudFront exception that applies to terraform-aws-cloudfront
+# / terraform-aws-wafv2 / terraform-aws-acm-for-cloudfront).
 #
 # module "mesh" {
-# source = "git::https://github.com/microsoftexpert/tf-mod-aws-appmesh?ref=v1.0.0"
+# source = "git::https://github.com/microsoftexpert/terraform-aws-appmesh?ref=v1.0.0"
 # # inherits the default `aws` provider (whatever Region it points at)
 # mesh_name = "core-mesh"
 #...

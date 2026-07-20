@@ -115,7 +115,7 @@ virtual services, routes).
  (LOADBALANCER|ENDPOINTS) }.
  - aws_cloud_map: { namespace_name, service_name (required),
  attributes (map, optional) } — wire namespace/service
- name from tf-mod-aws-service-discovery.
+ name from terraform-aws-service-discovery.
  - logging_access_log_path: Envoy access-log file path (e.g.
  "/dev/stdout" to flow into the container's
  awslogs driver). SECURE DEFAULT

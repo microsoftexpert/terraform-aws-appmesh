@@ -1,4 +1,4 @@
-# tf-mod-aws-appmesh — SCOPE
+# terraform-aws-appmesh — SCOPE
 
 Composite module for an AWS App Mesh service mesh **control plane**: the mesh
 itself plus its virtual nodes, virtual routers, virtual gateways, virtual
@@ -43,34 +43,34 @@ actually carries the mesh traffic.
 
 - **ECS service / task definition** (`aws_ecs_service`, `aws_ecs_task_definition`)
   — the Envoy proxy sidecar and `proxy_configuration { type = "APPMESH" }` are
-  configured in `tf-mod-aws-ecs-service`, not here. This module only creates the
+  configured in `terraform-aws-ecs-service`, not here. This module only creates the
   control-plane objects the sidecar registers against.
 - **EKS pod/deployment manifests** — Envoy sidecar injection via the App Mesh
   controller/CRDs is a Kubernetes-layer concern, out of Terraform's scope here.
 - **AWS Cloud Map namespace/service** (`aws_service_discovery_*`) — consumed by
-  ARN/name from `tf-mod-aws-service-discovery` for `aws_cloud_map` service
+  ARN/name from `terraform-aws-service-discovery` for `aws_cloud_map` service
   discovery on a virtual node.
 - **ACM certificate** (`aws_acm_certificate`) — consumed by ARN from
-  `tf-mod-aws-acm` for TLS-terminating listeners (`tls.certificate.acm`).
+  `terraform-aws-acm` for TLS-terminating listeners (`tls.certificate.acm`).
 - **IAM roles** — consumed by ARN only; App Mesh resources themselves take no
   `iam:PassRole` (Envoy runs under the ECS task/execution role, managed by
-  `tf-mod-aws-ecs-service` / `tf-mod-aws-iam-role`).
+  `terraform-aws-ecs-service` / `terraform-aws-iam-role`).
 - **Private CA** (`aws_acmpca_certificate_authority`) — consumed by ARN from
-  `tf-mod-aws-acm-pca` for `trust.acm.certificate_authority_arns` (mutual TLS).
+  `terraform-aws-acm-pca` for `trust.acm.certificate_authority_arns` (mutual TLS).
 
 ## Consumes
 
 | Input | Type | Source module |
 |---|---|---|
-| `virtual_nodes[*].service_discovery.aws_cloud_map.namespace_name` / `.service_name` | `string` | `tf-mod-aws-service-discovery` |
-| `virtual_nodes[*].listeners[*].tls.certificate.acm.certificate_arn` | `string` (ARN) | `tf-mod-aws-acm` (regional cert) |
-| `virtual_gateways[*].listener.tls.certificate.acm.certificate_arn` | `string` (ARN) | `tf-mod-aws-acm` (regional cert) |
-| `*.tls.validation.trust.acm.certificate_authority_arns` | `list(string)` (ARNs) | `tf-mod-aws-acm-pca` |
-| ECS task definition `proxy_configuration` / container `APPMESH_*` env vars | n/a | `tf-mod-aws-ecs-service` (consumes THIS module's outputs, not the reverse) |
+| `virtual_nodes[*].service_discovery.aws_cloud_map.namespace_name` / `.service_name` | `string` | `terraform-aws-service-discovery` |
+| `virtual_nodes[*].listeners[*].tls.certificate.acm.certificate_arn` | `string` (ARN) | `terraform-aws-acm` (regional cert) |
+| `virtual_gateways[*].listener.tls.certificate.acm.certificate_arn` | `string` (ARN) | `terraform-aws-acm` (regional cert) |
+| `*.tls.validation.trust.acm.certificate_authority_arns` | `list(string)` (ARNs) | `terraform-aws-acm-pca` |
+| ECS task definition `proxy_configuration` / container `APPMESH_*` env vars | n/a | `terraform-aws-ecs-service` (consumes THIS module's outputs, not the reverse) |
 
 > **Near-foundation module** — App Mesh consumes ACM certs, Cloud Map services,
 > and (optionally) Private CA ARNs, but nothing from compute. Compute modules
-> (`tf-mod-aws-ecs-service`) consume this module's virtual-node/virtual-service
+> (`terraform-aws-ecs-service`) consume this module's virtual-node/virtual-service
 > names, not the other way around.
 
 ## Required IAM permissions
@@ -100,11 +100,11 @@ needs `acm-pca:GetCertificateAuthorityCertificate`.
   `APPMESH_RESOURCE_ARN` environment variable pointing at this module's
   `virtual_node_arns[key]` output) or the EKS pod spec (via the App Mesh
   Kubernetes controller). Wire this module's outputs into
-  `tf-mod-aws-ecs-service`'s `proxy_configuration` and container definitions.
+  `terraform-aws-ecs-service`'s `proxy_configuration` and container definitions.
 - **Region:** App Mesh is a regional service; no us-east-1 constraint applies.
   Standard provider inheritance (no `region` variable in this module).
 - **Cloud Map dependency:** `aws_cloud_map` service discovery requires an
-  existing AWS Cloud Map namespace/service (`tf-mod-aws-service-discovery`)
+  existing AWS Cloud Map namespace/service (`terraform-aws-service-discovery`)
   created before the virtual node references it.
 - **Quotas:** 250 meshes per account (soft), 5,000 virtual nodes / 5,000
   virtual services per mesh, 10 listeners per virtual node (soft) — see the
@@ -119,7 +119,7 @@ needs `acm-pca:GetCertificateAuthorityCertificate`.
 |---|---|---|
 | `id` | Mesh id (= mesh name) | Cross-references within this module |
 | `arn` | Mesh ARN | IAM policies scoping `appmesh:*` actions |
-| `virtual_node_ids` / `virtual_node_arns` | Map keyed by caller key | `tf-mod-aws-ecs-service` (`APPMESH_RESOURCE_ARN`, `proxy_configuration`) |
+| `virtual_node_ids` / `virtual_node_arns` | Map keyed by caller key | `terraform-aws-ecs-service` (`APPMESH_RESOURCE_ARN`, `proxy_configuration`) |
 | `virtual_router_ids` / `virtual_router_arns` | Map keyed by caller key | Route wiring, monitoring |
 | `virtual_gateway_ids` / `virtual_gateway_arns` | Map keyed by caller key | Gateway route wiring, ECS/EKS gateway task |
 | `virtual_service_ids` / `virtual_service_arns` | Map keyed by caller key | Client-side virtual node `backend` references, gateway route targets |
@@ -206,12 +206,12 @@ needs `acm-pca:GetCertificateAuthorityCertificate`.
 - **Sibling-key cross-references** (`virtual_router_key`, `provider_virtual_node_key`,
   `virtual_node_key` inside route weighted targets, `virtual_service_key` inside
   gateway-route targets) mirror the pattern already established in
-  `tf-mod-aws-lb` (`target_group_key`, `listener_key`) so callers of composite
+  `terraform-aws-lb` (`target_group_key`, `listener_key`) so callers of composite
   Casey's modules see one consistent idiom for "reference a sibling resource by its
   map key" across the whole library.
 - **Deliberately data-plane-agnostic.** This module never touches an ECS task
   definition or EKS manifest — it only emits the ARNs/names the data plane
   needs. Keeping the control plane and data plane in separate modules lets
-  `tf-mod-aws-ecs-service` (or a future EKS-side module) own the sidecar
+  `terraform-aws-ecs-service` (or a future EKS-side module) own the sidecar
   injection concern independently, and lets a mesh be modeled once and
   consumed by multiple compute modules.

@@ -36,13 +36,13 @@ output "resource_owner" {
 ###############################################################################
 
 output "virtual_node_ids" {
- description = "Map of virtual-node key => id. Consumed by tf-mod-aws-ecs-service for cross-referencing."
+ description = "Map of virtual-node key => id. Consumed by terraform-aws-ecs-service for cross-referencing."
  value = { for k, v in aws_appmesh_virtual_node.this: k => v.id }
 }
 
 output "virtual_node_arns" {
  description = <<EOT
-Map of virtual-node key => ARN. Wire into tf-mod-aws-ecs-service's Envoy
+Map of virtual-node key => ARN. Wire into terraform-aws-ecs-service's Envoy
 proxy container (APPMESH_RESOURCE_ARN environment variable) so the sidecar
 registers as the correct virtual node at runtime.
 EOT
